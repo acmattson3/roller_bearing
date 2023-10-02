@@ -33,8 +33,6 @@ roller_top_bottom_r=new_r;
 */
 
 // Prioritize roller distance
-    //TODO: Figure out how to automatically determine roller radius based on outer and inner dia!
-// Calculate range of thicknesses to find best roller radius
 
 actual_roller_space=roller_space_total-2*min_wall_thick;
 new_r=(actual_roller_space/2);
