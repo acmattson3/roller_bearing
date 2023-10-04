@@ -1,8 +1,4 @@
-/* NOTE: Looking back, I could have just designed the
- * lower half, negative scaled over the z axis, and
- *  translated to save on rendering time quite a lot.
- */
-$fn=30;
+$fn=100;
 
 // Bearing shell configs
 bearing_h=7;
@@ -21,26 +17,15 @@ roller_h=bearing_h;
 roller_space_total=(bearing_outer_r-bearing_inner_r);
 roller_dist_circum = 2*3.1416*roller_dist_r;
 
-/*
-// Prioritize wall thickness
-bearing_wall_thick=0.4;
-actual_roller_space=roller_space_total-2*bearing_wall_thick;
-new_r=(actual_roller_space/2);
-roller_arclen=4*roller_dist_r*(3.1416/180)*asin( new_r/(2*roller_dist_r) );
-num_rollers=floor(roller_dist_circum/roller_arclen);
-
-roller_top_bottom_r=new_r;
-*/
-
 // Prioritize roller distance
-
+// Calculate ideal number of rollers
 actual_roller_space=roller_space_total-2*min_wall_thick;
 new_r=(actual_roller_space/2);
 roller_arclen=4*roller_dist_r*(3.1416/180)*asin( new_r/(2*roller_dist_r) );
 num_rollers=floor(roller_dist_circum/roller_arclen)+1;
 
 // Solving for ideal roller radius (num_rollers*arclen=circum, so solve for roller radius (which is in arclen equation))
-roller_top_bottom_r=2*roller_dist_r*sin((180/3.1416)*roller_dist_circum/(4*num_rollers*roller_dist_r));
+roller_top_bottom_r=2*roller_dist_r*sin((180/3.1416)*roller_dist_circum/(4*num_rollers*roller_dist_r))+(half_gap/4);
 
 // The radius of the rollers is now optimized for the number of rollers that fit the gap best!
 
@@ -97,28 +82,22 @@ module rollerBottom(hasGap=false) {
     }
 }
 
-module roller(segment=-1) {
+module rollerHalf(segment=-1) {
     if (segment==-1) {
         union() {
             rollerTop(hasGap=true);
             rollerTopMid(hasGap=true);
-            rollerBottomMid(hasGap=true);
-            rollerBottom(hasGap=true);
         }
     } else if (segment==0) {
         rollerTop();
     } else if (segment==1) {
         rollerTopMid();
-    } else if (segment==2) {
-        rollerBottomMid();
-    } else if (segment==3) {
-        rollerBottom();
     }
 }
 
-gap_res=floor(5*$fn/6);
+gap_res=60;
 angle_from_res=360/gap_res;
-module rollerGap() {
+module rollerGapHalf() {
     union() {
     for (i=[0:gap_res-1]) {
         x1=roller_dist_r*cos(i*angle_from_res);
@@ -127,39 +106,56 @@ module rollerGap() {
         y2=roller_dist_r*sin((i+1)*angle_from_res);
         
         // Separately hull each part of the roller
-        for (j=[0:3]) {
+        for (j=[0:1]) {
             hull() {
                 translate([x1,y1,0])
-                    roller(j);
+                    rollerHalf(j);
                 translate([x2,y2,0])
-                    roller(j);
+                    rollerHalf(j);
             }
         }
     }
 }
 }
 
+module rollerGap() {
+    union() {
+    rollerGapHalf();
+    translate([0,0,bearing_h]) scale([1,1,-1])
+        rollerGapHalf();
+    }
+}
+
 rotate_angle_deg=360/num_rollers;
-module rollers() {
+module rollersHalf() {
     for (i=[0:num_rollers-1]) {
         x=roller_dist_r*cos(i*rotate_angle_deg);
         y=roller_dist_r*sin(i*rotate_angle_deg);
         translate([x,y,0])
-        roller();
+        rollerHalf();
+    }
+}
+
+module rollers() {
+    union() {
+    rollersHalf();
+    translate([0,0,bearing_h]) scale([1,1,-1])
+        rollersHalf();
     }
 }
 
 module bearing() {
     difference() {
-    union() {
     bearingShell();
-    }
     rollerGap();
     }
     rollers();
 }
 
+
 difference() {
 bearing();
-//cube(100);
+    /*
+translate([0,0,50+bearing_h/4])
+cube(100, center=true);*/
 }
